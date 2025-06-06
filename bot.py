@@ -8,6 +8,7 @@ import nest_asyncio
 import threading
 from fastapi import FastAPI
 import uvicorn
+import re
 
 nest_asyncio.apply()
 
@@ -44,18 +45,28 @@ def build_messages_with_history(user_id, system_prompt=None):
     messages.extend(history)
     return messages
 
+def escape_markdown(text):
+    """
+    Escape characters for Telegram MarkdownV2
+    """
+    escape_chars = r'_*[]()~`>#+-=|{}.!'
+    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
+
 def format_for_telegram(text):
     """
-    Format text for proper Telegram Markdown display
+    Format text for proper Telegram MarkdownV2 display
     """
-    # Replace ** with * for Telegram markdown bold
-    formatted_text = text.replace('**', '*')
-    
-    # Replace ### with * for proper markdown headers
-    formatted_text = formatted_text.replace('### ', '*')
-    formatted_text = formatted_text.replace('###', '*')
-    
-    return formatted_text
+    # Escape first to prevent formatting issues
+    text = escape_markdown(text)
+
+    # Replace escaped markdown symbols back for formatting
+    # Bold: **text** -> *text*
+    text = re.sub(r'\\\*\\\*(.*?)\\\*\\\*', r'*\1*', text)
+
+    # Headers (### text) -> Bold
+    text = re.sub(r'\\\#\\\#\\\#\s*(.*?)\n?', r'*\1*\n', text)
+
+    return text
 
 def summarize_with_groq(text):
     # Initialize the Groq client (requires GROQ_API_KEY in environment)
@@ -168,7 +179,7 @@ def handle_document(message):
         formatted_summary = format_for_telegram(summary)
         
         # Send with Markdown formatting enabled
-        bot.reply_to(message, f"✅ *Summary:*\n\n{formatted_summary}", parse_mode='Markdown')
+        bot.reply_to(message, f"✅ *Summary:*\n\n{formatted_summary}")
 
         os.remove(filename)
 
@@ -215,7 +226,7 @@ def handle_question(message):
         formatted_answer = format_for_telegram(answer)
         
         # Send with Markdown formatting enabled
-        bot.reply_to(message, f"💡 *Answer:*\n\n{formatted_answer}", parse_mode='Markdown')
+        bot.reply_to(message, f"💡 *Answer:*\n\n{formatted_answer}")
         
     except Exception as e:
         bot.reply_to(message, f"⚠️ Failed to answer: {str(e)}")
