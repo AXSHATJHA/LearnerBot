@@ -54,19 +54,16 @@ def escape_markdown(text):
 
 def format_for_telegram(text):
     """
-    Format text for proper Telegram MarkdownV2 display
+    Remove Telegram/Markdown formatting characters like /, *, #.
+    Keeps only plain text.
     """
-    # Escape first to prevent formatting issues
-    text = escape_markdown(text)
-
-    # Replace escaped markdown symbols back for formatting
-    # Bold: **text** -> *text*
-    text = re.sub(r'\\\*\\\*(.*?)\\\*\\\*', r'*\1*', text)
-
-    # Headers (### text) -> Bold
-    text = re.sub(r'\\\#\\\#\\\#\s*(.*?)\n?', r'*\1*\n', text)
-
-    return text
+    # Remove *, #, / and any markdown-like characters
+    cleaned_text = re.sub(r'[*/#]', '', text)
+    
+    # Optionally, strip extra whitespace
+    cleaned_text = cleaned_text.strip()
+    
+    return cleaned_text
 
 def summarize_with_groq(text):
     # Initialize the Groq client (requires GROQ_API_KEY in environment)
