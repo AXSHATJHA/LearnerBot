@@ -13,8 +13,6 @@ nest_asyncio.apply()
 
 app = FastAPI()
 
-
-
 load_dotenv()
 
 @app.get("/")
@@ -46,6 +44,18 @@ def build_messages_with_history(user_id, system_prompt=None):
     messages.extend(history)
     return messages
 
+def format_for_telegram(text):
+    """
+    Format text for proper Telegram Markdown display
+    """
+    # Replace ** with * for Telegram markdown bold
+    formatted_text = text.replace('**', '*')
+    
+    # Replace ### with * for proper markdown headers
+    formatted_text = formatted_text.replace('### ', '*')
+    formatted_text = formatted_text.replace('###', '*')
+    
+    return formatted_text
 
 def summarize_with_groq(text):
     # Initialize the Groq client (requires GROQ_API_KEY in environment)
@@ -80,7 +90,6 @@ def summarize_with_groq(text):
 
     return summary
 
-
 def extract_text_from_pdf(path):
     text = ""
     with open(path, 'rb') as f:
@@ -88,7 +97,6 @@ def extract_text_from_pdf(path):
         for page in reader.pages:
             text += page.extract_text() or ''
     return text
-
 
 def ask_groq_about(text, question):
     client = Groq()
@@ -126,13 +134,10 @@ def ask_groq_about(text, question):
 
     return summary
 
-
-
 @bot.message_handler(commands=['start', 'hello'])
 def greet(message):
     user_histories[message.from_user.id] = []
     bot.reply_to(message, "👋 Hello! Send me a PDF or TXT document, and I can summarize it or answer questions about it.")
-
 
 @bot.message_handler(content_types=['document'])
 def handle_document(message):
@@ -160,13 +165,15 @@ def handle_document(message):
         bot.reply_to(message, "📄 Summarizing your document...")
 
         summary = summarize_with_groq(text)
-        bot.reply_to(message, f"✅ Summary:\n\n{summary}")
+        formatted_summary = format_for_telegram(summary)
+        
+        # Send with Markdown formatting enabled
+        bot.reply_to(message, f"✅ *Summary:*\n\n{formatted_summary}", parse_mode='Markdown')
 
         os.remove(filename)
 
     except Exception as e:
         bot.reply_to(message, f"⚠️ Error: {str(e)}")
-
 
 @bot.message_handler(func=lambda message: True)
 def handle_question(message):
@@ -205,7 +212,11 @@ def handle_question(message):
             answer += content
 
         update_user_history(user_id, 'assistant', answer)
-        bot.reply_to(message, f"💡 Answer:\n\n{answer}")
+        formatted_answer = format_for_telegram(answer)
+        
+        # Send with Markdown formatting enabled
+        bot.reply_to(message, f"💡 *Answer:*\n\n{formatted_answer}", parse_mode='Markdown')
+        
     except Exception as e:
         bot.reply_to(message, f"⚠️ Failed to answer: {str(e)}")
 
@@ -214,7 +225,6 @@ def run_bot():
     bot.infinity_polling()
 
 threading.Thread(target=run_bot, daemon=True).start()
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
