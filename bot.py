@@ -4,8 +4,22 @@ import os
 import PyPDF2
 from dotenv import load_dotenv
 from groq import Groq
+import nest_asyncio
+import threading
+from fastapi import FastAPI
+import uvicorn
+
+nest_asyncio.apply()
+
+app = FastAPI()
+
+
 
 load_dotenv()
+
+@app.get("/")
+def health_check():
+    return {"status": "Bot is running", "version": "1.0"}
 
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 
@@ -195,6 +209,13 @@ def handle_question(message):
     except Exception as e:
         bot.reply_to(message, f"⚠️ Failed to answer: {str(e)}")
 
+def run_bot():
+    print("Bot is running...")
+    bot.infinity_polling()
 
-print("Bot is running...")
-bot.infinity_polling()
+threading.Thread(target=run_bot, daemon=True).start()
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)

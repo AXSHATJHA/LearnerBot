@@ -1,3 +1,6 @@
+fastapi
+uvicorn
+nest-asyncio
 pyTelegramBotAPI
 requests
 python-dotenv
